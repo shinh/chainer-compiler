@@ -1,3 +1,5 @@
+kick CI
+
 # Chainer compiler: experimental toolchain to compile and run Chainer models
 
 [![Build Status](https://travis-ci.org/pfnet-research/chainer-compiler.svg?branch=master)](http://travis-ci.org/pfnet-research/chainer-compiler)
