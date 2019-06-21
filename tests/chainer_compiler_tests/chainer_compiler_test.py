@@ -210,6 +210,7 @@ def test_bn(device_name, translator, computation_order):
     device.use()
 
     bn = BN(in_size, n_out)
+    bn.to_device(device)
 
     input = np.random.rand(batch_size, in_size).astype(np.float32)
     input = device.xp.array(input)
