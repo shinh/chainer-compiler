@@ -53,6 +53,7 @@
         "Ceil": true,
         "ChainerAveragePoolGrad": true,
         "ChainerBatchNormalizationAddActiv": true,
+        "ChainerBatchNormalizationAddActivGrad": true,
         "ChainerBatchNormalizationGrad": true,
         "ChainerConvGradWeight": true,
         "ChainerConvTransposeWithDynamicOutputShape": true,

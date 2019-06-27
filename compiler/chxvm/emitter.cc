@@ -401,6 +401,8 @@ private:
             EMIT(Gemm, out(0), in(0), in(1), in(2), node.alpha(), node.beta(), node.trans_a(), node.trans_b());
         } else if (node.op_type() == Node::kBatchNormalization) {
             EmitBatchNormalization(node, prog);
+        } else if (node.op_type() == Node::kChainerBatchNormalizationAddActiv) {
+            EmitBatchNormalization(node, prog);
         } else if (node.op_type() == Node::kLRN) {
             EMIT(LRN, out(0), oout(1), in(0), node.alpha(), node.beta(), node.bias(), node.size());
         } else if (node.op_type() == Node::kChainerLRNGrad) {
@@ -560,6 +562,10 @@ private:
             CHECK_EQ(2UL, node.inputs().size());
             CHECK_EQ(3UL, node.outputs().size());
             EMIT(BatchNormalizationGrad, out(0), out(1), out(2), in(0), in(1));
+        } else if (node.op_type() == Node::kChainerBatchNormalizationAddActivGrad) {
+            CHECK_EQ(2UL, node.inputs().size());
+            CHECK_EQ(3UL, node.outputs().size());
+            EMIT(BatchNormalizationAddActivGrad, out(0), out(1), out(2), in(0), in(1));
         } else if (node.op_type() == Node::kChainerSelectItemGrad) {
             EMIT(SelectItemGrad, out(0), in(0), in(1), in(2));
         } else if (node.op_type() == Node::kChainerGatherGrad) {
@@ -762,6 +768,7 @@ private:
         CHECK_EQ(1, node.spatial()) << "`spatial` for BatchNormalization was removed from ONNX";
         size_t num_onnx_outputs = node.outputs().size();
         if (num_onnx_outputs == 1 && !node.chainer_in_recomputing()) {
+            CHECK_EQ(node.op_type(), Node::kBatchNormalization);
             EMIT(FixedBatchNormalization,
                  GetOutputValue(node, 0),
                  GetValueId(node.input(0)),
@@ -787,21 +794,42 @@ private:
             outs.push_back(ChxVMValue());
         }
 
-        EMIT(BatchNormalization,
-             outs[0],
-             outs[1],
-             outs[2],
-             outs[3],
-             outs[4],
-             outs[5],
-             GetValueId(node.input(0)),
-             GetValueId(node.input(1)),
-             GetValueId(node.input(2)),
-             GetValueId(node.input(3)),
-             GetValueId(node.input(4)),
-             node.epsilon(),
-             node.momentum(),
-             node.chainer_in_recomputing());
+        if (node.op_type() == Node::kBatchNormalization) {
+            EMIT(BatchNormalization,
+                 outs[0],
+                 outs[1],
+                 outs[2],
+                 outs[3],
+                 outs[4],
+                 outs[5],
+                 GetValueId(node.input(0)),
+                 GetValueId(node.input(1)),
+                 GetValueId(node.input(2)),
+                 GetValueId(node.input(3)),
+                 GetValueId(node.input(4)),
+                 node.epsilon(),
+                 node.momentum(),
+                 node.chainer_in_recomputing());
+        } else {
+            CHECK_EQ(node.op_type(), Node::kChainerBatchNormalizationAddActiv);
+            CHECK_EQ(5, node.inputs().size()) << "TODO(hamaji): Implement add fusion";
+            EMIT(BatchNormalizationAddActiv,
+                 outs[0],
+                 outs[1],
+                 outs[2],
+                 outs[3],
+                 outs[4],
+                 outs[5],
+                 GetValueId(node.input(0)),
+                 GetValueId(node.input(1)),
+                 GetValueId(node.input(2)),
+                 GetValueId(node.input(3)),
+                 GetValueId(node.input(4)),
+                 node.epsilon(),
+                 node.momentum(),
+                 node.chainer_in_recomputing(),
+                 node.activation());
+        }
     }
 
 #undef EMIT
