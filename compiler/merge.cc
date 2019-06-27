@@ -8,6 +8,7 @@
 #include <compiler/flags.h>
 #include <compiler/graph.h>
 #include <compiler/graph_builder.h>
+#include <compiler/log.h>
 #include <compiler/node.h>
 #include <compiler/value.h>
 
@@ -256,6 +257,7 @@ bool MaybeMergeBatchNormalization(Graph* graph, Node* bn) {
         return false;
     }
 
+    CLOG() << "Fuse BatchNormalization: " << bn->ToString() << std::endl;
     GraphBuilder gb(graph, "MergeBatchNormalization", activ->output(0));
     std::vector<Value*> new_outputs = {activ->output(0)};
     for (size_t i = 1; i < bn->outputs().size(); ++i) {
