@@ -308,7 +308,7 @@ void MergeOperations(Graph* graph, bool gen_backprop) {
                 case Node::kBatchNormalization:
                     // TODO(hamaji): Not related to `g_use_nvrtc`, but
                     // hiding the experimental feature for now.
-                    if (g_fuse_operations && g_use_nvrtc) {
+                    if (g_fuse_operations && g_use_nvrtc && gen_backprop) {
                         replaced |= MaybeMergeBatchNormalization(graph, node);
                     }
                 default:
