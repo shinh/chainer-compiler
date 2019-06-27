@@ -20,20 +20,7 @@ chainerx::Array ReluOp::RunImpl(ChxVMState* st, const chainerx::Array& x) {
 }
 
 chainerx::Array ReluGradOp::RunImpl(ChxVMState* st, const chainerx::Array& x, const chainerx::Array& gy) {
-    chainerx::Array out = chainerx::EmptyLike(x, x.device());
-    double eps;
-    // TODO(hamaji): Use IsLessElseSAAS once it is added.
-    if (x.dtype() == chainerx::Dtype::kFloat16) {
-        eps = 5.96e-08;
-    } else if (x.dtype() == chainerx::Dtype::kFloat32) {
-        eps = 1.4013e-45f;
-    } else if (x.dtype() == chainerx::Dtype::kFloat64) {
-        eps = 4.94066e-324;
-    } else {
-        CHECK(false) << "TODO(hamaji): Unsupported dtype: " << x.dtype();
-    }
-    x.device().backend().CallKernel<chainerx::IfLessElseASSAKernel>(x, eps, chainerx::Scalar(0.0), gy, out);
-    return out;
+    return ReluGrad(x, gy);
 }
 
 chainerx::Array SeluOp::RunImpl(ChxVMState* st, const chainerx::Array& x) {

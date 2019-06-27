@@ -6,6 +6,7 @@
 #include <chainerx/routines/statistics.h>
 
 #include <common/log.h>
+#include <runtime/chainerx_util.h>
 #include <runtime/chxvm_state.h>
 #include <runtime/gen_chxvm_ops.h>
 
@@ -56,6 +57,14 @@ public:
         return sorted_axis_;
     }
 
+    const chainerx::Array& y() const {
+        return y_;
+    }
+
+    void set_y(const chainerx::Array& y) {
+        y_ = y;
+    }
+
 private:
     std::shared_ptr<chainerx::BatchNormGradState> state_;
     chainerx::Array x_;
@@ -64,6 +73,8 @@ private:
     chainerx::Shape x2_shape_;
     double epsilon_;
     chainerx::Axes sorted_axis_;
+    // TODO(hamaji): Better to use the graph explicitly.
+    chainerx::Array y_;
 };
 
 // TODO(hamaji): Copied from ChainerX's code.
@@ -209,6 +220,7 @@ std::tuple<chainerx::Array, ChxVMOpaque*, chainerx::Array, chainerx::Array, chai
     CHECK_EQ(4, activation) << "Only ReLU supported";
     auto result = BatchNormalizationImpl(st, x, s, bias, mean, var, epsilon, decay, in_recomputing, this->saved_mean, this->saved_var);
     std::get<0>(result) = chainerx::Relu(std::get<0>(result));
+    dynamic_cast<BatchNormBackwardContext&>(*std::get<1>(result)).set_y(std::get<0>(result));
     return result;
 }
 
@@ -232,6 +244,26 @@ std::tuple<chainerx::Array, chainerx::Array, chainerx::Array> BatchNormalization
         ChxVMState* st, const chainerx::Array& gy, const ChxVMOpaque& ctx) {
     auto& context = dynamic_cast<const BatchNormBackwardContext&>(ctx);
     chainerx::Array gx, ggamma, gbeta;
+    std::tie(gx, ggamma, gbeta) = gy.device().backend().CallKernel<chainerx::BatchNormGradKernel>(
+            context.x(),
+            context.gamma(),
+            gy,
+            context.epsilon(),
+            context.sorted_axis(),
+            context.state(),
+            nonstd::nullopt,
+            nonstd::nullopt,
+            nonstd::nullopt);
+    chainerx::Array gx1 = chainerx::Reshape(ggamma, context.x1_shape());
+    chainerx::Array gx2 = chainerx::Reshape(gbeta, context.x2_shape());
+    return std::forward_as_tuple(gx, gx1, gx2);
+}
+
+std::tuple<chainerx::Array, chainerx::Array, chainerx::Array> BatchNormalizationAddActivGradOp::RunImpl(
+        ChxVMState* st, const chainerx::Array& gy2, const ChxVMOpaque& ctx) {
+    auto& context = dynamic_cast<const BatchNormBackwardContext&>(ctx);
+    chainerx::Array gx, ggamma, gbeta;
+    chainerx::Array gy = ReluGrad(context.y(), gy2);
     std::tie(gx, ggamma, gbeta) = gy.device().backend().CallKernel<chainerx::BatchNormGradKernel>(
             context.x(),
             context.gamma(),

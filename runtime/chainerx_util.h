@@ -52,5 +52,7 @@ chainerx::Array GroupedConv(
         const Int64StackVector& pads,
         int group);
 
+chainerx::Array ReluGrad(const chainerx::Array& y, const chainerx::Array& gy);
+
 }  // namespace runtime
 }  // namespace chainer_compiler
