@@ -520,6 +520,16 @@ void BatchNormalizationGradFn(GradientOpContext* gc) {
     gb.MOp(Node::kChainerBatchNormalizationGrad, {gy, context}, {gx0, gx1, gx2});
 }
 
+void BatchNormalizationAddActivGradFn(GradientOpContext* gc) {
+    GraphBuilder gb{gc->builder(0)};
+    Value* context = gc->AddOutput(Type(Type::Kind::kOpaque));
+    Value* gy = gc->gy(0);
+    Value* gx0 = gc->AddGradValue(0);
+    Value* gx1 = gc->AddGradValue(1);
+    Value* gx2 = gc->AddGradValue(2);
+    gc->graph()->AddNode(Node::kChainerBatchNormalizationAddActivGrad, {gy, context}, {gx0, gx1, gx2}, __func__);
+}
+
 void LRNGradFn(GradientOpContext* gc) {
     GraphBuilder gb{gc->builder(0)};
     Node* node = gc->node();
@@ -995,6 +1005,7 @@ bool AddGradientForNode(Graph* graph, Graph* dest_graph, Node* node, std::map<Va
         register_grad_fn(Node::kSoftmax, &SoftmaxGradFn);
 
         register_grad_fn(Node::kBatchNormalization, &BatchNormalizationGradFn);
+        register_grad_fn(Node::kChainerBatchNormalizationAddActiv, &BatchNormalizationAddActivGradFn);
         register_grad_fn(Node::kLRN, &LRNGradFn);
 
         register_grad_fn(Node::kChainerLinear, &LinearGradFn);
