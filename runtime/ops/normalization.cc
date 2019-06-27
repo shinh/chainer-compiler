@@ -135,15 +135,18 @@ PreprocessBatchNormResult PreprocessBatchNorm(
     return {std::move(gamma_reshaped), std::move(beta_reshaped), std::move(mean_reshaped), std::move(var_reshaped), sorted_axis};
 }
 
-}  // namespace
-
-std::tuple<chainerx::Array, ChxVMOpaque*, chainerx::Array, chainerx::Array, chainerx::Array, chainerx::Array> BatchNormalizationOp::RunImpl(
-        ChxVMState* st,
-        const chainerx::Array& x,
-        const chainerx::Array& s,
-        const chainerx::Array& bias,
-        const chainerx::Array& mean,
-        const chainerx::Array& var) {
+std::tuple<chainerx::Array, ChxVMOpaque*, chainerx::Array, chainerx::Array, chainerx::Array, chainerx::Array> BatchNormalizationImpl(
+    ChxVMState* st,
+    const chainerx::Array& x,
+    const chainerx::Array& s,
+    const chainerx::Array& bias,
+    const chainerx::Array& mean,
+    const chainerx::Array& var,
+    double epsilon,
+    const double decay,
+    const bool in_recomputing,
+    const int saved_mean_index,
+    const int saved_var_index) {
     // To workaround the limitation of CuDNN.
     if (epsilon <= 1e-5) epsilon = 1e-5 + 1e-12;
     chainerx::Axes axes;
@@ -169,19 +172,44 @@ std::tuple<chainerx::Array, ChxVMOpaque*, chainerx::Array, chainerx::Array, chai
         ctx->SetRetainedArrays({x, gamma_reshaped, beta_reshaped, result.mean, result.var});
     }
     chainerx::Array saved_mean, saved_var;
-    if (this->saved_mean >= 0) {
+    if (saved_mean_index >= 0) {
         WARN_ONCE("saved_mean is implemented by re-calculation");
         chainerx::Axes axes = {0};
         for (int i = 2; i < x.ndim(); ++i) axes.push_back(i);
         saved_mean = chainerx::Mean(x, axes);
     }
-    if (this->saved_var >= 0) {
+    if (saved_var_index >= 0) {
         WARN_ONCE("saved_var is implemented by re-calculation");
         chainerx::Axes axes = {0};
         for (int i = 2; i < x.ndim(); ++i) axes.push_back(i);
         saved_var = chainerx::Var(x, axes);
     }
     return std::tie(out, ctx, mean, var, saved_mean, saved_var);
+}
+
+}  // namespace
+
+std::tuple<chainerx::Array, ChxVMOpaque*, chainerx::Array, chainerx::Array, chainerx::Array, chainerx::Array> BatchNormalizationOp::RunImpl(
+        ChxVMState* st,
+        const chainerx::Array& x,
+        const chainerx::Array& s,
+        const chainerx::Array& bias,
+        const chainerx::Array& mean,
+        const chainerx::Array& var) {
+    return BatchNormalizationImpl(st, x, s, bias, mean, var, epsilon, decay, in_recomputing, this->saved_mean, this->saved_var);
+}
+
+std::tuple<chainerx::Array, ChxVMOpaque*, chainerx::Array, chainerx::Array, chainerx::Array, chainerx::Array> BatchNormalizationAddActivOp::RunImpl(
+        ChxVMState* st,
+        const chainerx::Array& x,
+        const chainerx::Array& s,
+        const chainerx::Array& bias,
+        const chainerx::Array& mean,
+        const chainerx::Array& var) {
+    CHECK_EQ(4, activation) << "Only ReLU supported";
+    auto result = BatchNormalizationImpl(st, x, s, bias, mean, var, epsilon, decay, in_recomputing, this->saved_mean, this->saved_var);
+    std::get<0>(result) = chainerx::Relu(std::get<0>(result));
+    return result;
 }
 
 chainerx::Array FixedBatchNormalizationOp::RunImpl(
