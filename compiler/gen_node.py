@@ -236,6 +236,9 @@ NodeDef('ChainerLinear', (2, 3), 1, n_batch_axes=1)
 NodeDef('ChainerLinearGradWeight', 2, 1)
 NodeDef('ChainerReluGrad', 2, 1)
 NodeDef('ChainerReduceSumTo', 2, 1)
+NodeDef('ChainerBatchNormalizationAddActiv', (5, 6), (5, 6),
+        epsilon=1e-5, momentum=0.9, spatial=1, chainer_in_recomputing=0,
+        activation=-1)
 
 NodeDef('ChainerROIMaxPool2D', 3, 1,
         output_shape=[int], spatial_scale=Required(float))

@@ -5,6 +5,7 @@
 #include <chainerx/routines/misc.h>
 
 #include <common/iterator.h>
+#include <compiler/flags.h>
 #include <compiler/graph.h>
 #include <compiler/graph_builder.h>
 #include <compiler/node.h>
@@ -228,6 +229,51 @@ bool MaybeMergeTransposeGemm(Graph* graph, Node* trans) {
     return true;
 }
 
+bool MaybeMergeBatchNormalization(Graph* graph, Node* bn) {
+    Value* bn_out = bn->output(0);
+    if (bn_out->users().size() != 1) {
+        return false;
+    }
+
+    Node* next = bn_out->user(0);
+    // TODO(hamaji): Support bn+add+relu fusion.
+#if 0
+    if (next->op_type() == Node::kAdd) {
+        if (next->input(0) == next->input(1)) {
+            return false;
+        }
+        Value* add_out = next->output(0);
+        if (add_out->users()->size() != 1) {
+            return false;
+        }
+        next = add_out;
+    }
+#endif
+
+    Node* activ = next;
+    // TODO(hamaji): Support other activations.
+    if (activ->op_type() != Node::kRelu) {
+        return false;
+    }
+
+    GraphBuilder gb(graph, "MergeBatchNormalization", activ->output(0));
+    std::vector<Value*> new_outputs = {activ->output(0)};
+    for (size_t i = 1; i < bn->outputs().size(); ++i) {
+        new_outputs.push_back(bn->output(i));
+    }
+    Node* new_bn = gb.MOp(Node::kChainerBatchNormalizationAddActiv, bn->inputs(), new_outputs);
+    new_bn->set_epsilon(bn->epsilon());
+    new_bn->set_momentum(bn->momentum());
+    new_bn->set_spatial(bn->spatial());
+    new_bn->set_chainer_in_recomputing(bn->chainer_in_recomputing());
+    new_bn->set_activation(4);
+
+    graph->DetachNode(bn);
+    graph->DetachNode(activ);
+
+    return true;
+}
+
 }  // namespace
 
 void MergeOperations(Graph* graph, bool gen_backprop) {
@@ -257,6 +303,12 @@ void MergeOperations(Graph* graph, bool gen_backprop) {
                 case Node::kTranspose:
                     replaced |= MaybeMergeTransposeGemm(graph, node);
                     break;
+                case Node::kBatchNormalization:
+                    // TODO(hamaji): Not related to `g_use_nvrtc`, but
+                    // hiding the experimental feature for now.
+                    if (g_fuse_operations && g_use_nvrtc) {
+                        replaced |= MaybeMergeBatchNormalization(graph, node);
+                    }
                 default:
                     break;
             }
