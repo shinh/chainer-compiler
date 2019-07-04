@@ -572,12 +572,12 @@ bool ReplaceImageScaler(Graph* graph, Node* node) {
 }
 
 bool ReplaceSlice(Graph* graph, Node* node) {
-    GraphBuilder gb(graph, "SimplifySlice", node->output(0));
-    // Do nothing for Slice-1.
-    if (node->inputs().size() == 1) {
-        return false;
-    }
-    gb.Op(Node::kDynamicSlice, node->inputs(), node->output(0));
+    return false;
+}
+
+bool ReplaceDynamicSlice(Graph* graph, Node* node) {
+    GraphBuilder gb(graph, "SimplifyDynamicSlice", node->output(0));
+    gb.Op(Node::kSlice, node->inputs(), node->output(0));
     return true;
 }
 
@@ -687,6 +687,7 @@ void Simplify(const std::set<std::string>& simplifier_names, Graph* graph, bool 
     REGISTER_SIMPLIFIER(Shape);
     REGISTER_SIMPLIFIER(ImageScaler);
     REGISTER_SIMPLIFIER(Slice);
+    REGISTER_SIMPLIFIER(DynamicSlice);
     REGISTER_SIMPLIFIER(MaxRoiPool);
     REGISTER_SIMPLIFIER(Identity);
     REGISTER_SIMPLIFIER(ChainerLinear);

@@ -496,20 +496,21 @@ private:
             CHECK_EQ(1UL, node.outputs().size());
             EMIT(EyeLike, out(0), in(0), node.dtype(), node.k());
         } else if (node.op_type() == Node::kSlice) {
-            CHECK_EQ(1UL, node.inputs().size());
             CHECK_EQ(1UL, node.outputs().size());
             CHECK_NE(0UL, node.starts().size());
             CHECK_NE(0UL, node.ends().size());
             CHECK_EQ(node.starts().size(), node.ends().size());
-            std::vector<int64_t> axes(node.axes());
-            if (axes.empty()) {
-                for (size_t i = 0; i < node.starts().size(); ++i) axes.push_back(i);
+            if (node.inputs().size() == 1) {
+                std::vector<int64_t> axes(node.axes());
+                if (axes.empty()) {
+                    for (size_t i = 0; i < node.starts().size(); ++i) axes.push_back(i);
+                } else {
+                    CHECK_EQ(node.starts().size(), axes.size());
+                }
+                EMIT(Slice, out(0), in(0), axes, node.starts(), node.ends());
             } else {
-                CHECK_EQ(node.starts().size(), axes.size());
+                EMIT(DynamicSlice, out(0), in(0), in(1), in(2), oin(3), oin(4));
             }
-            EMIT(Slice, out(0), in(0), axes, node.starts(), node.ends());
-        } else if (node.op_type() == Node::kDynamicSlice) {
-            EMIT(DynamicSlice, out(0), in(0), in(1), in(2), oin(3), oin(4));
         } else if (node.op_type() == Node::kChainerGetItem) {
             std::vector<int> ins;
             for (size_t i = 1; i < node.inputs().size(); ++i) ins.push_back(in(i));
