@@ -575,12 +575,6 @@ bool ReplaceSlice(Graph* graph, Node* node) {
     return false;
 }
 
-bool ReplaceDynamicSlice(Graph* graph, Node* node) {
-    GraphBuilder gb(graph, "SimplifyDynamicSlice", node->output(0));
-    gb.Op(Node::kSlice, node->inputs(), node->output(0));
-    return true;
-}
-
 bool ReplaceMaxRoiPool(Graph* graph, Node* node) {
     // TODO(hamaji): Fix this. The result does not match for
     // out/opset9/test_roipooling2d.
@@ -687,7 +681,6 @@ void Simplify(const std::set<std::string>& simplifier_names, Graph* graph, bool 
     REGISTER_SIMPLIFIER(Shape);
     REGISTER_SIMPLIFIER(ImageScaler);
     REGISTER_SIMPLIFIER(Slice);
-    REGISTER_SIMPLIFIER(DynamicSlice);
     REGISTER_SIMPLIFIER(MaxRoiPool);
     REGISTER_SIMPLIFIER(Identity);
     REGISTER_SIMPLIFIER(ChainerLinear);

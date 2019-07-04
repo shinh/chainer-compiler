@@ -126,8 +126,6 @@ NodeDef('Flatten', 1, 1, axis=1)
 # This Slice supports both Slice-1 and Slice-10.
 NodeDef('Slice', (1, 3, 4, 5), 1,
         axes=[int], starts=[int], ends=[int])
-# TOOD(hamaji): Remove this as it is deprecated in ONNX.
-NodeDef('DynamicSlice', (3, 4, 5), 1)
 NodeDef('Gather', 2, 1, axis=0)
 NodeDef('Concat', None, 1, axis=Required(int))
 NodeDef('Split', 1, None, axis=0, split=[int])
@@ -272,7 +270,6 @@ NodeDef('ChainerLRNGrad', 4, 1,
 NodeDef('ChainerLSTMGrad', 2, 4)
 NodeDef('ChainerConvGradWeight', 3, 1, **conv_attrs)
 NodeDef('ChainerGatherGrad', 3, 1, axis=0)
-NodeDef('ChainerDynamicSliceGrad', (4, 5, 6), 1)
 NodeDef('ChainerFusionGroup', None, None, subgraph=Graph, fusion_type=str)
 
 # Numpy's advanced indexing.

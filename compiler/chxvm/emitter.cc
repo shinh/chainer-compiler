@@ -567,8 +567,6 @@ private:
             EMIT(SelectItemGrad, out(0), in(0), in(1), in(2));
         } else if (node.op_type() == Node::kChainerGatherGrad) {
             EMIT(GatherGrad, out(0), in(0), in(1), in(2), node.axis());
-        } else if (node.op_type() == Node::kChainerDynamicSliceGrad) {
-            EMIT(DynamicSliceGrad, out(0), in(0), in(1), in(2), in(3), oin(4), oin(5));
         } else if (node.op_type() == Node::kChainerFusionGroup) {
             EmitFusionGroup(node, prog);
         } else if (node.op_type() == Node::kIf) {
