@@ -2,7 +2,6 @@
     "simplify_preproc": {
         "ReplaceChainerSelectItem": true,
         "ReplaceChainerSoftmaxCrossEntropy": true,
-        "ReplaceDynamicSlice": true,
         "ReplaceIdentity": true,
         // TODO(hamaji): Revive Scan.
         // "ReplaceScan": true,
