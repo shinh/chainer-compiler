@@ -496,11 +496,10 @@ private:
             CHECK_EQ(1UL, node.outputs().size());
             EMIT(EyeLike, out(0), in(0), node.dtype(), node.k());
         } else if (node.op_type() == Node::kSlice) {
-            CHECK_EQ(1UL, node.outputs().size());
-            CHECK_NE(0UL, node.starts().size());
-            CHECK_NE(0UL, node.ends().size());
             CHECK_EQ(node.starts().size(), node.ends().size());
             if (node.inputs().size() == 1) {
+                CHECK_NE(0UL, node.starts().size());
+                CHECK_NE(0UL, node.ends().size());
                 std::vector<int64_t> axes(node.axes());
                 if (axes.empty()) {
                     for (size_t i = 0; i < node.starts().size(); ++i) axes.push_back(i);
@@ -509,6 +508,8 @@ private:
                 }
                 EMIT(Slice, out(0), in(0), axes, node.starts(), node.ends());
             } else {
+                CHECK_EQ(0UL, node.starts().size());
+                CHECK_EQ(0UL, node.ends().size());
                 EMIT(DynamicSlice, out(0), in(0), in(1), in(2), oin(3), oin(4));
             }
         } else if (node.op_type() == Node::kChainerGetItem) {
