@@ -148,10 +148,18 @@ std::vector<chainerx::Array> DldtOp::RunImpl(chainer_compiler::runtime::ChxVMSta
 
     infer_request.Infer();
 
+    for (size_t i = 0; i < impl_->output_arrays.size(); ++i) {
+        std::cerr << "expected output #" << i << impl_->output_arrays[i].shape() << std::endl;
+    }
+
     // We assume output values are alphabetically sorted in ONNX.
     size_t i = 0;
     for (auto& p : impl_->network.getOutputsInfo()) {
         InferenceEngine::Blob::Ptr output = infer_request.GetBlob(p.first);
+        std::cerr << "output #" << i << " " << output->layout() << std::endl;
+        for (auto d : output->dims()) {
+            std::cerr << "output #" << i << " " << d << std::endl;
+        }
         const chainerx::Array& output_array = impl_->output_arrays[i];
         memcpy(output_array.raw_data(), output->buffer(), output_array.GetNBytes());
         ++i;
