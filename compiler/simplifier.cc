@@ -3,6 +3,8 @@
 #include <iostream>
 #include <limits>
 
+#include <chainerx/routines/manipulation.h>
+
 #include <common/log.h>
 #include <common/strutil.h>
 #include <compiler/flags.h>
@@ -24,6 +26,15 @@ struct Simplifier {
     const char* name;
     SimplifierFn fn;
 };
+
+template <typename T> std::vector<T> GetValues(const chainerx::Array& a) {
+    CHECK_EQ(1, a.shape().ndim());
+    std::vector<T> vals;
+    for (int64_t i = 0; i < a.GetTotalSize(); ++i) {
+        vals.emplace_back(chainerx::AsScalar(a.At({i})));
+    }
+    return vals;
+}
 
 bool ReplaceSum(Graph* graph, Node* node) {
     CHECK_LT(0UL, node->inputs().size());
@@ -572,7 +583,31 @@ bool ReplaceImageScaler(Graph* graph, Node* node) {
 }
 
 bool ReplaceSlice(Graph* graph, Node* node) {
-    return false;
+    if (node->inputs().size() < 3 || node->inputs().size() == 5) {
+        return false;
+    }
+    const Tensor* start = node->input(1)->GetConstTensor();
+    const Tensor* end = node->input(2)->GetConstTensor();
+    if (!start || !end) {
+        return false;
+    }
+    const Tensor* axes = nullptr;
+    if (node->inputs().size() == 4) {
+        axes = node->input(3)->GetConstTensor();
+        if (!axes) {
+            return false;
+        }
+    }
+
+    GraphBuilder gb(graph, "SimplifySlice", node->output(0));
+    Node* new_node = gb.MOp(Node::kSlice, {node->input(0)}, node->outputs());
+    new_node->set_starts(GetValues<int64_t>(start->chx()));
+    new_node->set_ends(GetValues<int64_t>(end->chx()));
+    if (axes) {
+        new_node->set_axes(GetValues<int64_t>(axes->chx()));
+    }
+
+    return true;
 }
 
 bool ReplaceMaxRoiPool(Graph* graph, Node* node) {
