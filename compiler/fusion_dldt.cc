@@ -1,9 +1,13 @@
 #include <set>
 
+#include <chainerx/array.h>
+#include <chainerx/routines/manipulation.h>
+
 #include <compiler/fusion.h>
 #include <compiler/graph.h>
 #include <compiler/node.h>
 #include <compiler/value.h>
+#include <runtime/chainerx_util.h>
 
 namespace chainer_compiler {
 
@@ -85,7 +89,25 @@ void FuseDldtOperations(Graph* graph) {
         }
 
         if (node.op_type() == Node::kResize || node.op_type() == Node::kUpsample) {
-            if (node.inputs() == 2 && !node.input(1)->producer() || node.input(1)->producer()->op_type() != Node::kConstant) {
+            if (node.inputs().size() != 2) {
+                return false;
+            }
+            if (node.mode() != "nearest") {
+                return false;
+            }
+            const Tensor* scales_tensor = node.input(1)->GetConstTensor();
+            if (!scales_tensor) {
+                return false;
+            }
+            const chainerx::Array& a = scales_tensor->chx();
+            if (a.shape().size() != 1) {
+                return false;
+            }
+            std::vector<double> scales;
+            for (int64_t i = 0; i < a.GetTotalSize(); ++i) {
+                scales.emplace_back(chainerx::AsScalar(a.At({i})));
+            }
+            if (scales.size() != 4 || scales[0] != 1 || scales[1] != 1 || scales[2] != scales[3]) {
                 return false;
             }
         }
