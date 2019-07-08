@@ -13,6 +13,7 @@
 #include <compiler/graph_builder.h>
 #include <compiler/log.h>
 #include <compiler/node.h>
+#include <compiler/onnx.h>
 #include <compiler/value.h>
 #include <configs/backend_config.h>
 
@@ -674,7 +675,7 @@ bool ReplaceResizeForDldt(Graph* graph, Node* node) {
     CHECK_EQ(1, scales[1]);
     CHECK_EQ(scales[2], scales[3]);
 
-    gb.MOp(Node::kUpsample, {node->input(0)}, node->outputs())->set_mode(node->mode())->set_height_scale(scales[2])->set_width_scale(scales[3]);
+    gb.MOp(Node::kUpsample, {node->input(0)}, node->outputs(), CHAINER_ONNX_DOMAIN)->set_mode(node->mode())->set_height_scale(scales[2])->set_width_scale(scales[3]);
     return true;
 }
 

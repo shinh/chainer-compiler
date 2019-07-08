@@ -156,7 +156,7 @@ std::vector<chainerx::Array> DldtOp::RunImpl(chainer_compiler::runtime::ChxVMSta
     size_t i = 0;
     for (auto& p : impl_->network.getOutputsInfo()) {
         InferenceEngine::Blob::Ptr output = infer_request.GetBlob(p.first);
-        std::cerr << "output #" << i << " " << output->layout() << std::endl;
+        std::cerr << "output #" << i << " " << p.first << " "<< output->layout() << std::endl;
         for (auto d : output->dims()) {
             std::cerr << "output #" << i << " " << d << std::endl;
         }
