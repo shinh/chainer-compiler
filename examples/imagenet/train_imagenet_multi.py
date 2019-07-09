@@ -16,6 +16,7 @@ from chainer.optimizers import CorrectedMomentumSGD
 from chainer import training
 from chainer.training import extensions
 
+import chainercv
 from chainercv.chainer_experimental.datasets.sliceable import TransformDataset
 from chainercv.datasets import directory_parsing_label_names
 from chainercv.datasets import DirectoryParsingLabelDataset
@@ -43,6 +44,34 @@ try:
     cv2.setNumThreads(0)
 except ImportError:
     pass
+
+
+_imagenet_mean = np.array(
+    [123.15163084, 115.90288257, 103.0626238],
+    dtype=np.float32)[:, np.newaxis, np.newaxis]
+
+
+class ResNet1001(chainercv.links.model.resnet.ResNet):
+    _blocks = {
+        1001: [60, 92, 120, 60]
+    }
+    _models = {
+        'fb': {
+            1001: {
+                'imagenet': {
+                    'param': {'n_class': 1000, 'mean': _imagenet_mean},
+                    'overwritable': {'mean'},
+                    'cv2': True,
+                },
+            }
+        }
+    }
+
+    def __init__(self, n_class=None, pretrained_model=None,
+                 mean=None, initialW=None, fc_kwargs={}, arch='fb'):
+        super(ResNet1001, self).__init__(
+            1001, n_class, pretrained_model,
+            mean, initialW, fc_kwargs, arch)
 
 
 class TrainTransform(object):
@@ -103,7 +132,9 @@ def main():
         'resnet101': {'class': ResNet101, 'score_layer_name': 'fc6',
                       'kwargs': {'arch': 'fb'}},
         'resnet152': {'class': ResNet152, 'score_layer_name': 'fc6',
-                      'kwargs': {'arch': 'fb'}}
+                      'kwargs': {'arch': 'fb'}},
+        'resnet1001': {'class': ResNet1001, 'score_layer_name': 'fc6',
+                       'kwargs': {'arch': 'fb'}}
     }
     parser = argparse.ArgumentParser(
         description='Learning convnet from ILSVRC2012 dataset')
