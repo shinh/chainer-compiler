@@ -674,6 +674,60 @@ bool ReplaceResizeForDldt(Graph* graph, Node* node) {
     return true;
 }
 
+void ReplaceInitializers(Graph* graph) {
+    std::map<Node::OpType, int> need_replace_list = {
+            {Node::kReshape, 1},
+            {Node::kExpand, 1},
+            {Node::kResize, 1},
+            {Node::kUpsample, 1},
+    };
+
+    std::map<Value*, Value*> initializers;
+    for (Value* value : graph->input_values()) {
+        if (!value->initializer()) {
+            continue;
+        }
+
+        bool should_replace = true;
+        for (Node* node : value->users()) {
+            auto found = need_replace_list.find(node->op_type());
+            if (found == need_replace_list.end()) {
+                should_replace = false;
+                break;
+            }
+
+            const int input_index = found->second;
+            if (input_index >= node->inputs().size() || node->input(input_index) != value) {
+                should_replace = false;
+                break;
+            }
+        }
+
+        if (!should_replace) {
+            continue;
+        }
+
+        GraphBuilder gb(graph, "SimplifyInitializers", value);
+        Value* replaced = gb.Op(Node::kConstant, {});
+        replaced->producer()->set_tensor_value(value->ReleaseInitializer());
+        CHECK(initializers.emplace(value, replaced).second);
+    }
+
+    for (const auto& p : initializers) {
+        Value* value = p.first;
+        Value* replaced = p.second;
+        CLOG() << "Initializer " << value->ToString() << " simplified" << std::endl;
+        for (Node* node : std::vector<Node*>(value->users())) {
+            node->ReplaceInput(value, replaced);
+        }
+
+        std::vector<Value*>* input_values = graph->mutable_input_values();
+        auto found = std::find(input_values->begin(), input_values->end(), value);
+        CHECK(found != input_values->end()) << value->ToString();
+        input_values->erase(found);
+    }
+}
+
 }  // namespace
 
 void Simplify(const std::set<std::string>& simplifier_names, Graph* graph, bool gen_backprop) {
@@ -726,6 +780,8 @@ void Simplify(const std::set<std::string>& simplifier_names, Graph* graph, bool 
     register_simplifier(Node::kResize, "ReplaceResizeForDldt", ReplaceResizeForDldt);
     register_simplifier(Node::kUpsample, "ReplaceUpsampleForDldt", ReplaceResizeForDldt);
 
+    CHECK(all_simplifier_names.insert("ReplaceInitializers").second);
+
     // Validate `simplifier_names`.
     for (const std::string& name : simplifier_names) {
         CHECK_EQ(1, all_simplifier_names.count(name)) << name;
@@ -753,6 +809,8 @@ void Simplify(const std::set<std::string>& simplifier_names, Graph* graph, bool 
             }
         }
     }
+
+    ReplaceInitializers(graph);
 }
 
 }  // namespace chainer_compiler

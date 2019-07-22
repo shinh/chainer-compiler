@@ -34,7 +34,8 @@
         "ReplaceMaxPool": true,
         "ReplaceAveragePool": true,
         // Backprop only.
-        "ReplaceConcat": true
+        "ReplaceConcat": true,
+        "ReplaceInitializers": true
     },
     "supported_ops": {
         "Abs": true,
