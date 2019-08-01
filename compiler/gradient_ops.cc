@@ -8,6 +8,7 @@
 
 #include <common/log.h>
 #include <common/strutil.h>
+#include <compiler/flags.h>
 #include <compiler/gradient.h>
 #include <compiler/graph.h>
 #include <compiler/graph_builder.h>
@@ -65,7 +66,22 @@ public:
     }
 
     Value* Retain(Value* v) {
-        if (!retained_) return v;
+        if (!retained_) {
+            if (!g_retain_fp16) {
+                return v;
+            }
+            Dtype dtype = v->type().dtype();
+            if (!dtype.IsFloat() || dtype == Dtype::kFloat16) {
+                return v;
+            }
+            int id = ++id_;
+            GraphBuilder gb(graph_, StrCat(name_, "RetainFP16", id), v);
+            Value* v16 = gb.Op(Node::kCast, {v});
+            v16->producer()->set_to(Dtype::kFloat16);
+            Value* v_orig = gb.Op(Node::kCast, {v16});
+            v_orig->producer()->set_to(dtype);
+            return v_orig;
+        }
         int id = ++id_;
         GraphBuilder gb(graph_, StrCat(name_, "Retain", id), v);
         if (v->producer() && v->producer()->op_type() == Node::kConstant) {

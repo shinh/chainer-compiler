@@ -109,6 +109,10 @@ FLAGS = {
         'doc': 'Dump the subgraph tree of the ONNX graph'
     },
 
+    'retain_fp16': {
+        'type': 'bool',
+        'doc': 'Use fp16 to retain float variables for backprop'
+    },
     'computation_order': {
         'type': 'std::string',
         'doc': 'Run the specified policy of computation order (backprop only)'
