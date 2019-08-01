@@ -66,12 +66,13 @@ public:
     }
 
     Value* Retain(Value* v) {
+        const Dtype dtype = v->type().dtype();
+        bool retain_fp16 = g_retain_fp16 && dtype.IsFloat() && dtype != Dtype::kFloat16;
+        if (!v->producer() || v->producer()->output(0) != v) {
+            retain_fp16 = false;
+        }
         if (!retained_) {
-            if (!g_retain_fp16) {
-                return v;
-            }
-            Dtype dtype = v->type().dtype();
-            if (!dtype.IsFloat() || dtype == Dtype::kFloat16) {
+            if (!retain_fp16) {
                 return v;
             }
             int id = ++id_;
@@ -90,12 +91,21 @@ public:
             copied->producer()->set_tensor_value(new Tensor(t.name() + "_retain", t));
             return copied;
         }
+        if (retain_fp16) {
+            GraphBuilder sgb(src_graph_, "RetainFP16", v);
+            v = sgb.Op(Node::kCast, {v});
+            v->producer()->set_to(Dtype::kFloat16);
+        }
         auto p = retained_->emplace(v, nullptr);
         if (!p.second) {
             return p.first->second;
         }
         Value* retained = gb.Temp(v->type());
         p.first->second = retained;
+        if (retain_fp16) {
+            retained = gb.Op(Node::kCast, {retained});
+            retained->producer()->set_to(dtype);
+        }
         return retained;
     }
 
