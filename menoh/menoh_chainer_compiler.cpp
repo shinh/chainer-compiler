@@ -1,5 +1,7 @@
 #include <menoh/menoh.h>
 
+#include <string.h>
+
 #include <iostream>
 
 #include <nlohmann/json.hpp>
@@ -749,10 +751,9 @@ menoh_error_code menoh_model_run(menoh_model_handle model) {
                 auto const& array = chainerx::AsContiguous(output.second->GetArray());
                 auto const& shape = array.shape();
                 auto bytesize = shape.GetTotalSize() * chainerx::GetItemSize(array.dtype());
-                std::copy(
-                        static_cast<uint8_t*>(array.raw_data()),
-                        static_cast<uint8_t*>(array.raw_data()) + bytesize,
-                        static_cast<uint8_t*>(found->second));
+                memcpy(static_cast<uint8_t*>(found->second),
+                       static_cast<uint8_t*>(array.raw_data()),
+                       bytesize);
             }
         }
         chainerx::SetDefaultContext(default_context_backup);

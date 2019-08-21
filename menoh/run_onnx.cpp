@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -175,7 +176,8 @@ int main(int argc, char** argv) {
         for (const auto& p : test_case->inputs) {
             auto input_var = model.get_variable(p.first);
             uint8_t* data = static_cast<uint8_t*>(p.second->GetArray().raw_data());
-            std::copy(data, data + variable_size_in_bytes(input_var), static_cast<uint8_t*>(input_var.buffer_handle));
+            memcpy(static_cast<uint8_t*>(input_var.buffer_handle), data,
+                   variable_size_in_bytes(input_var));
         }
         model.run();
         chainer_compiler::runtime::InOuts outputs;
