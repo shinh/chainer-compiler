@@ -992,6 +992,8 @@ class ONNXGraph:
                 inputs_.append(input.name)
             elif isinstance(input, values.Value):
                 inputs_.append(value2onnx_parameter[input].onnx_name)
+            elif input is None:
+                inputs_.append('')
             else:
                 assert(False)
 

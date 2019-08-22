@@ -215,12 +215,22 @@ def convert_onnx_chainer_NStepLSTM(onnx_graph: 'ONNXGraph', node: 'nodes.NodeCal
         self_bs.append(bs_)
 
     parser = oc.NodeParse()
-    parser.add_def('hx', oc.ParseType.Att, None)
-    parser.add_def('cx', oc.ParseType.Att, None)
+    parser.add_def('hx', oc.ParseType.In)
+    parser.add_def('cx', oc.ParseType.In)
     parser.add_def('xs', oc.ParseType.In)
     parser.parse(onnx_graph, node)
 
     xs = parser.get('xs').create_sequence()
+    hx = parser.get('hx')
+    if isinstance(hx.value, values.NoneValue):
+        hx = None
+    else:
+        hx = hx.create_tensor(node.lineprop)
+    cx = parser.get('cx')
+    if isinstance(cx.value, values.NoneValue):
+        cx = None
+    else:
+        cx = cx.create_tensor(node.lineprop)
 
     # disolve nstep into 1step
 
@@ -278,6 +288,13 @@ def convert_onnx_chainer_NStepLSTM(onnx_graph: 'ONNXGraph', node: 'nodes.NodeCal
         bs.append(lstm_param([b[0], b[3], b[1], b[2],
                               b[4], b[7], b[5], b[6]]))
 
+    if hx is not None or cx is not None:
+        indices = []
+        for i in range(n_layers + 1):
+            indices.append(oc.ONNXValue(
+                onnx_graph, np.array([i], dtype=np.int64),
+                [node, '/index%d' % i]))
+
     hs = []
     cs = []
     for i in range(n_layers):
@@ -285,9 +302,29 @@ def convert_onnx_chainer_NStepLSTM(onnx_graph: 'ONNXGraph', node: 'nodes.NodeCal
         c = oc.ONNXValue(onnx_graph, np.float32, [node, '/c'])
         ys = oc.ONNXValue(onnx_graph, np.float32, [node, '/ys'])
 
+        hi = None
+        if hx is not None:
+            (hi,) = onnx_graph.add_node(
+                "Slice", [hx, indices[i], indices[i+1], indices[0]], [None],
+                str(node.lineprop))
+            (hi,) = onnx_graph.add_node(
+                "Squeeze", [hi], [None],
+                str(node.lineprop),
+                axes=[0])
+
+        ci = None
+        if cx is not None:
+            (ci,) = onnx_graph.add_node(
+                "Slice", [cx, indices[i], indices[i+1], indices[0]], [None],
+                str(node.lineprop))
+            (ci,) = onnx_graph.add_node(
+                "Squeeze", [ci], [None],
+                str(node.lineprop),
+                axes=[0])
+
         onnx_graph.add_node(
             "LSTM",
-            [v, ws[i], rs[i], bs[i], tilens],
+            [v, ws[i], rs[i], bs[i], tilens, hi, ci],
             [ys, h, c],
             str(node.lineprop),
             direction='forward',
@@ -537,4 +574,3 @@ def convert_onnx_chainer_EmbedID(onnx_graph: 'ONNXGraph', node: 'nodes.NodeCall'
         [w, x],
         [node.outputs[0]],
         str(node.lineprop))
-
